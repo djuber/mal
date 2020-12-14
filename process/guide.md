@@ -74,9 +74,11 @@ add new implementations to mal as efficiently as possible, then you
 SHOULD find the most similar target language implementation and refer
 to it frequently.
 
-If you want a fairly long list of programming languages with an
-approximate measure of popularity, try the [Programming Language
-Popularity Chart](http://langpop.corger.nl/)
+If you want a list of programming languages with an
+approximate measure of popularity try the [RedMonk Programming
+Language
+Rankings](https://redmonk.com/sogrady/2019/03/20/language-rankings-1-19/)
+or the [GitHut 2.0 Project](https://madnight.github.io/githut).
 
 
 ## Getting started
@@ -107,7 +109,7 @@ IMPLS = ... quux ...
 quux_STEP_TO_PROG = mylang/$($(1)).qx
 ```
 
-* Add a "run" script to you implementation directory that listens to
+* Add a "run" script to your implementation directory that listens to
   the "STEP" environment variable for the implementation step to run
   and defaults to "stepA_mal". Make sure the run script has the
   executable file permission set (or else the test runner might fail with a
@@ -186,7 +188,7 @@ a textual diff/comparison tool to compare the previous pseudocode step
 with the one you are working on. The architecture diagram images have
 changes from the previous step highlighted in red. There is also
 a concise
-[cheatsheet](http://kanaka.github.io/mal/process/cheatsheet.html) that
+[cheatsheet](http://kanaka.github.io/mal/cheatsheet.html) that
 summarizes the key changes at each step.
 
 If you get completely stuck and are feeling like giving up, then you
@@ -197,6 +199,13 @@ bit bad about it.
 
 
 ## The Make-A-Lisp Process
+
+Feel free to follow the guide as literally or as loosely as you
+like. You are here to learn; wandering off the beaten path may be the
+way you learn best. However, each step builds on the previous steps,
+so if you are new to Lisp or new to your implementation language then
+you may want to stick more closely to the guide your first time
+through to avoid frustration at later steps.
 
 In the steps that follow the name of the target language is "quux" and
 the file extension for that language is "qx".
@@ -373,8 +382,8 @@ expression support.
   numbers (integers) and symbols. This will allow you to proceed
   through the next couple of steps before you will need to implement
   the other fundamental mal types: nil, true, false, and string. The
-  remaining mal types: keyword, vector, hash-map, and atom do not
-  need to be implemented until step 9 (but can be implemented at any
+  remaining scalar mal type, keyword does not
+  need to be implemented until step A (but can be implemented at any
   point between this step and that). BTW, symbols types are just an
   object that contains a single string name value (some languages have
   symbol types already).
@@ -427,8 +436,9 @@ and each step will give progressively more bang for the buck.
 
 
 * Add support for the other basic data type to your reader and printer
-  functions: string, nil, true, and false. These become mandatory at
-  step 4. When a string is read, the following transformations are
+  functions: string, nil, true, and false. Nil, true, and false
+  become mandatory at step 4, strings at step 6. When a string is read,
+  the following transformations are
   applied: a backslash followed by a doublequote is translated into
   a plain doublequote character, a backslash followed by "n" is
   translated into a newline, and a backslash followed by another
@@ -729,7 +739,7 @@ diff -urp ../process/step3_env.txt ../process/step4_if_fn_do.txt
   of the binds list to the respective element of the `exprs` list.
 
 * Add support to `printer.qx` to print functions values. A string
-  literal like "#<function>" is sufficient.
+  literal like "#\<function>" is sufficient.
 
 * Add the following special forms to `EVAL`:
 
@@ -763,10 +773,10 @@ the apply section of `EVAL`.
 
 Try out the basic functionality you have implemented:
 
-  * `(fn* [a] a)` -> `#<function>`
-  * `( (fn* [a] a) 7)` -> `7`
-  * `( (fn* [a] (+ a 1)) 10)` -> `11`
-  * `( (fn* [a b] (+ a b)) 2 3)` -> `5`
+  * `(fn* (a) a)` -> `#<function>`
+  * `( (fn* (a) a) 7)` -> `7`
+  * `( (fn* (a) (+ a 1)) 10)` -> `11`
+  * `( (fn* (a b) (+ a b)) 2 3)` -> `5`
 
 * Add a new file `core.qx` and define an associative data structure
   `ns` (namespace) that maps symbols to functions. Move the numeric
@@ -906,15 +916,16 @@ diff -urp ../process/step4_if_fn_do.txt ../process/step5_tco.txt
 
 * The default "apply"/invoke case of `EVAL` must now be changed to
   account for the new object/structure returned by the `fn*` form.
-  Continue to call `eval_ast` on `ast`. The first element is `f`.
+  Continue to call `eval_ast` on `ast`. The first element of the 
+  result of `eval_ast` is `f` and the remaining elements are in `args`.
   Switch on the type of `f`:
   * regular function (not one defined by `fn*`): apply/invoke it as
     before (in step 4).
   * a `fn*` value: set `ast` to the `ast` attribute of `f`. Generate
     a new environment using the `env` and `params` attributes of `f`
-    as the `outer` and `binds` arguments and rest `ast` arguments
-    (list elements 2 through the end) as the `exprs` argument. Set
-    `env` to the new environment. Continue at the beginning of the loop.
+    as the `outer` and `binds` arguments and `args` as the `exprs` 
+    argument. Set `env` to the new environment. Continue at the 
+    beginning of the loop.
 
 Run some manual tests from previous steps to make sure you have not
 broken anything by adding TCO.
@@ -987,7 +998,7 @@ diff -urp ../process/step5_tco.txt ../process/step6_file.txt
 
 * Define a `load-file` function using mal itself. In your main
   program call the `rep` function with this string:
-  "(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))".
+  "(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \"\nnil)\")))))".
 
 Try out `load-file`:
   * `(load-file "../tests/incA.mal")` -> `9`
@@ -996,7 +1007,9 @@ Try out `load-file`:
 The `load-file` function does the following:
   * Call `slurp` to read in a file by name. Surround the contents with
     "(do ...)" so that the whole file will be treated as a single
-    program AST (abstract syntax tree).
+    program AST (abstract syntax tree). Add a new line in case the files
+    ends with a comment. The `nil` ensures a short and predictable result,
+    instead of what happens to be the last function defined in the loaded file.
   * Call `read-string` on the string returned from `slurp`. This uses
     the reader to read/convert the file contents into mal data/AST.
   * Call `eval` (the one in the REPL environment) on the AST returned
@@ -1110,9 +1123,10 @@ unquoted (normal evaluation). There are two special forms that only
 mean something within a quasiquoted list: `unquote` and
 `splice-unquote`. These are perhaps best explained with some examples:
 
-* `(def! lst (quote (2 3)))` -> `(2 3)`
-* `(quasiquote (1 (unquote lst)))` -> `(1 (2 3))`
-* `(quasiquote (1 (splice-unquote lst)))` -> `(1 2 3)`
+* `(def! lst (quote (b c)))` -> `(b c)`
+* `(quasiquote (a lst d))` -> `(a lst d)`
+* `(quasiquote (a (unquote lst) d))` -> `(a (b c) d)`
+* `(quasiquote (a (splice-unquote lst) d))` -> `(a b c d)`
 
 The `unquote` form turns evaluation back on for its argument and the
 result of evaluation is put in place into the quasiquoted list. The
@@ -1130,7 +1144,7 @@ diff -urp ../process/step6_file.txt ../process/step7_quote.txt
 * Copy `step6_file.qx` to `step7_quote.qx`.
 
 * Before implementing the quoting forms, you will need to implement
-* some supporting functions in the core namespace:
+  some supporting functions in the core namespace:
   * `cons`: this function takes a list as its second
     parameter and returns a new list that has the first argument
     prepended to it.
@@ -1149,28 +1163,57 @@ Mal borrows most of its syntax and feature-set).
 * Add the `quote` special form. This form just returns its argument
   (the second list element of `ast`).
 
-* Add the `quasiquote` special form. First implement a helper function
-  `is_pair` that returns true if the parameter is a non-empty list.
-  Then define a `quasiquote` function. This is called from `EVAL` with
-  the first `ast` argument (second list element) and then `ast` is set
-  to the result and execution continues at the top of the loop (TCO).
+* Add the `quasiquote` function.
   The `quasiquote` function takes a parameter `ast` and has the
-  following conditional:
-  1. if `is_pair` of `ast` is false: return a new list containing:
-     a symbol named "quote" and `ast`.
-  2. else if the first element of `ast` is a symbol named "unquote":
-     return the second element of `ast`.
-  3. if `is_pair` of the first element of `ast` is true and the first
-     element of first element of `ast` (`ast[0][0]`) is a symbol named
-     "splice-unquote": return a new list containing: a symbol named
-     "concat", the second element of first element of `ast`
-     (`ast[0][1]`), and the result of calling `quasiquote` with the
-     second through last element of `ast`.
-  4. otherwise: return a new list containing: a symbol named "cons", the
-     result of calling `quasiquote` on first element of `ast`
-     (`ast[0]`), and the result of calling `quasiquote` with the second
-     through last element of `ast`.
+  following conditional.
+  - If `ast` is a list starting with the "unquote" symbol, return its
+    second element.
+  - If `ast` is a list failing previous test, the result will be a
+    list populated by the following process.
 
+    The result is initially an empty list.
+    Iterate over each element `elt` of `ast` in reverse order:
+    - If `elt` is a list starting with the "splice-unquote" symbol,
+      replace the current result with a list containing:
+      the "concat" symbol,
+      the second element of `elt`,
+      then the previous result.
+    - Else replace the current result with a list containing:
+      the "cons" symbol,
+      the result of calling `quasiquote` with `elt` as argument,
+      then the previous result.
+
+    This process can also be described recursively:
+    - If `ast` is empty return it unchanged. else let `elt` be its
+      first element.
+    - If `elt` is a list starting with the "splice-unquote" symbol,
+      return a list containing:
+      the "concat" symbol,
+      the second element of `elt`,
+      then the result of processing the rest of `ast`.
+    - Else return a list containing:
+      the "cons" symbol,
+      the result of calling `quasiquote` with `elt` as argument,
+      then the result of processing the rest of `ast`.
+  - If `ast` is a map or a symbol, return a list containing:
+    the "quote" symbol,
+    then `ast`.
+  - Else return `ast` unchanged.
+    Such forms are not affected by evaluation, so you may quote them
+    as in the previous case if implementation is easyer.
+
+* Optionally, add a the `quasiquoteexpand` special form.
+  This form calls the `quasiquote` function using the first `ast`
+  argument (second list element) and returns the result.
+  It has no other practical purpose than testing your implementation
+  of the `quasiquote` internal function.
+
+* Add the `quasiquote` special form.
+  This form does the same than `quasiquoteexpand`,
+  but evaluates the result in the current environment before returning it,
+  either by recursively calling `EVAL` with the result and `env`,
+  or by assigning `ast` with the result and continuing execution at
+  the top of the loop (TCO).
 
 Now go to the top level, run the step 7 tests:
 ```
@@ -1179,7 +1222,7 @@ make "test^quux^step7"
 
 Quoting is one of the more mundane functions available in mal, but do
 not let that discourage you. Your mal implementation is almost
-complete, and quoting sets the stage for the next very exiting step:
+complete, and quoting sets the stage for the next very exciting step:
 macros.
 
 
@@ -1205,12 +1248,20 @@ macros.
     the symbol "splice-unquote" and the result of reading the next
     form (`read_form`).
 
-* Add support for quoting of vectors. The `is_pair` function should
-  return true if the argument is a non-empty list or vector. `cons`
+* Add support for quoting of vectors. `cons`
   should also accept a vector as the second argument. The return value
-  is a list regardless. `concat` should support concatenation of
-  lists, vectors, or a mix or both. The result is always a list.
+  is a list regardless.  `concat` should support concatenation of
+  lists, vectors, or a mix of both.  The result is always a list.
 
+  Implement a core function `vec` turning a list into a vector with
+  the same elements.  If provided a vector, `vec` should return it
+  unchanged.
+
+  In the `quasiquote` function, when `ast` is a vector,
+  return a list containing:
+  the "vec" symbol,
+  then the result of processing `ast` as if it were a list not
+  starting with `quote`.
 
 <a name="step8"></a>
 
@@ -1326,17 +1377,19 @@ implementation. Let us continue!
     and return the first element. If the list (or vector) is empty or
     is `nil` then `nil` is returned.
   * `rest`: this function takes a list (or vector) as its argument and
-    returns a new list containing all the elements except the first.
+    returns a new list containing all the elements except the first. If
+    the list (or vector) is empty or is `nil` then `()` (empty list) 
+    is returned.
 
-* In the main program, use the `rep` function to define two new
-  control structures macros. Here are the string arguments for `rep`
-  to define these macros:
-  * `cond`: "(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))"
+* In the main program, call the `rep` function with the following
+  string argument  to define a new control structure.
+```
+"(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))"
+```
     * Note that `cond` calls the `throw` function when `cond` is
       called with an odd number of args. The `throw` function is
       implemented in the next step, but it will still serve it's
       purpose here by causing an undefined symbol error.
-  * `or`: "(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))"
 
 
 <a name="step9"></a>
@@ -1452,6 +1505,9 @@ self-hosting.
   * `vector?`: takes a single argument and returns true (mal true
     value) if the argument is a vector, otherwise returns false (mal
     false value).
+  * `sequential?`: takes a single argument and returns true (mal true
+    value) if it is a list or a vector, otherwise returns false (mal
+    false value).
   * `hash-map`: takes a variable but even number of arguments and
     returns a new mal hash-map value with keys from the odd arguments
     and values from the even arguments respectively. This is basically
@@ -1479,9 +1535,6 @@ self-hosting.
     all the keys in the hash-map.
   * `vals`: takes a hash-map and returns a list (mal list value) of
     all the values in the hash-map.
-  * `sequential?`: takes a single arguments and returns true (mal true
-    value) if it is a list or a vector, otherwise returns false (mal
-    false value).
 
 
 <a name="stepA"></a>
@@ -1518,23 +1571,6 @@ diff -urp ../process/step9_try.txt ../process/stepA_mal.txt
   entered by the user is returned as a string. If the user sends an
   end-of-file (usually Ctrl-D), then nil is returned.
 
-* Add meta-data support to mal functions by adding a new metadata
-  attribute on mal functions that refers to another mal value/type
-  (nil by default). Add the following metadata related core functions:
-  * `meta`: this takes a single mal function argument and returns the
-    value of the metadata attribute.
-  * `with-meta`: this function takes two arguments. The first argument
-    is a mal function and the second argument is another mal
-    value/type to set as metadata. A copy of the mal function is
-    returned that has its `meta` attribute set to the second argument.
-    Note that it is important that the environment and macro attribute
-    of mal function are retained when it is copied.
-  * Add a reader-macro that expands the token "^" to
-    return a new list that contains the symbol "with-meta" and the
-    result of reading the next next form (2nd argument) (`read_form`) and the
-    next form (1st argument) in that order
-    (metadata comes first with the ^ macro and the function second).
-
 * Add a new "\*host-language\*" (symbol) entry to your REPL
   environment. The value of this entry should be a mal string
   containing the name of the current implementation.
@@ -1544,6 +1580,12 @@ diff -urp ../process/step9_try.txt ../process/stepA_mal.txt
   to print a startup header:
   "(println (str \"Mal [\" \*host-language\* \"]\"))".
 
+* Ensure that the REPL environment contains definitions for `time-ms`,
+  `meta`, `with-meta`, `fn?`
+  `string?`, `number?`, `seq`, and `conj`.  It doesn't really matter
+  what they do at this stage: they just need to be defined.  Making
+  them functions that raise a "not implemented" exception would be
+  fine.
 
 Now go to the top level, run the step A tests:
 ```
@@ -1596,38 +1638,32 @@ implementation to run a mal implementation which itself runs the mal
 implementation.
 
 
-#### Optional: gensym
-
-The `or` macro we introduced at step 8 has a bug. It defines a
-variable called `or_FIXME`, which "shadows" such a binding from the
-user's code (which uses the macro). If a user has a variable called
-`or_FIXME`, it cannot be used as an `or` macro argument. In order to
-fix that, we'll introduce `gensym`: a function which returns a symbol
-which was never used before anywhere in the program. This is also an
-example for the use of mal atoms to keep state (the state here being
-the number of symbols produced by `gensym` so far).
-
-Previously you used `rep` to define the `or` macro. Remove that
-definition and use `rep` to define the new counter, `gensym` function
-and the clean `or` macro. Here are the string arguments you need to
-pass to `rep`:
-```
-"(def! *gensym-counter* (atom 0))"
-
-"(def! gensym (fn* [] (symbol (str \"G__\" (swap! *gensym-counter* (fn* [x] (+ 1 x)))))))"
-
-"(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) (let* (condvar (gensym)) `(let* (~condvar ~(first xs)) (if ~condvar ~condvar (or ~@(rest xs)))))))))"
-```
-
-For extra information read [Peter Seibel's thorough discussion about
-`gensym` and leaking macros in Common Lisp](http://www.gigamonkeys.com/book/macros-defining-your-own.html#plugging-the-leaks).
-
-
 #### Optional additions
 
-* Add metadata support to other composite data types (lists, vectors
-  and hash-maps), and to native functions.
-* Add the following new core functions:
+* Add meta-data support to composite data types (lists, vectors
+  and hash-maps), and to functions (native or not), by adding a new
+  metadata attribute that refers to another mal value/type
+  (nil by default). Add the following metadata related core functions
+  (and remove any stub versions):
+  * `meta`: this takes a single mal function argument and returns the
+    value of the metadata attribute.
+  * `with-meta`: this function takes two arguments. The first argument
+    is a mal function and the second argument is another mal
+    value/type to set as metadata. A copy of the mal function is
+    returned that has its `meta` attribute set to the second argument.
+    Note that it is important that the environment and macro attribute
+    of mal function are retained when it is copied.
+  * Add a reader-macro that expands the token "^" to
+    return a new list that contains the symbol "with-meta" and the
+    result of reading the next next form (2nd argument) (`read_form`) and the
+    next form (1st argument) in that order
+    (metadata comes first with the ^ macro and the function second).
+  * If you implemented as `defmacro!` to mutate an existing function
+    without copying it, you can now use the function copying mechanism
+    used for metadata to make functions immutable even in the
+    defmacro! case...
+
+* Add the following new core functions (and remove any stub versions):
   * `time-ms`: takes no arguments and returns the number of
     milliseconds since epoch (00:00:00 UTC January 1, 1970), or, if
     not possible, since another point in time (`time-ms` is usually
